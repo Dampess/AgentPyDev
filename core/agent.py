@@ -66,6 +66,21 @@ class ProjectAgent:
         save_projects(self.projects)
         self.active_project = key
         return msg
+    def delete_project(self, project):
+         """Supprime un projet complet de la base de données."""
+         key = self._get_project_key(project)
+         if not key:
+           return f"❌ Projet inconnu : {project}"
+    
+         # Supprime le projet
+         del self.projects[key]
+         save_projects(self.projects)
+    
+        # Si c'était le projet actif, on le désactive
+         if self.active_project == key:
+          self.active_project = None
+    
+          return f"🗑️ Projet '{key}' supprimé avec succès."
 
     def delete_task(self, project, task_name):
         """Supprime une tâche d’un projet."""
@@ -80,38 +95,56 @@ class ProjectAgent:
     def interpret(self, text):
         """Interprète une commande textuelle naturelle."""
         parsed = parse_command(text)
-        print("\n[DEBUG] Analyse NLP :", parsed)
+        print("\n[DEBUG] Analyse NLP :", parsed) #temporaire
+
 
         action = parsed.get("action")
         project = parsed.get("project")
         task_name = parsed.get("task_name")
         deadline = parsed.get("deadline")
         estimate = parsed.get("estimate")
-
-        # 🧠 Si aucun projet précisé → utilise le dernier projet actif
-        if not project and self.active_project:
-            project = self.active_project
+        priority = parsed.get("priority")
+        description = parsed.get("description")
 
         if action == "unknown":
             return "🤔 Je n'ai pas compris la commande."
 
+        elif action == "add_project":
+            if not project:
+                return "❌ Il manque le nom du projet."
+            return self.add_project(project, description or "")
+
         elif action == "add_task":
-            if not task_name:
-                return "❌ Il manque le nom de la tâche."
+            if not project or not task_name:
+                return "❌ Il manque le nom du projet ou de la tâche."
             return self.add_task(project, task_name, deadline, estimate)
 
         elif action == "complete_task":
-            if not task_name:
-                return "❌ Il manque le nom de la tâche."
+            if not project or not task_name:
+                return "❌ Il manque le nom du projet ou de la tâche."
             return self.complete_task(project, task_name)
 
         elif action == "delete_task":
-            if not task_name:
-                return "❌ Il manque le nom de la tâche."
+            if not project or not task_name:
+                return "❌ Il manque le nom du projet ou de la tâche."
             return self.delete_task(project, task_name)
 
+        elif action == "delete_project":
+            if not project:
+                return "❌ Il faut préciser le projet à supprimer."
+            # On supprime le projet de la base
+            key = self._get_project_key(project)
+            if not key:
+                return f"❌ Projet inconnu : {project}"
+            del self.projects[key]
+            save_projects(self.projects)
+            return f"🗑️ Projet '{key}' supprimé."
+
         elif action == "show_project":
+            if not project:
+                return "❌ Il faut préciser quel projet tu veux voir."
             return self.show_status(project)
 
         else:
             return "❓ Commande non reconnue."
+
